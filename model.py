@@ -6,6 +6,7 @@ import math
 from model_part import conv2d
 from model_part import fc
 
+
 def inference(images, reuse=False, trainable=True):
     coarse1_conv = conv2d('coarse1', images, [11, 11, 3, 96], [96], [1, 4, 4, 1], padding='VALID', reuse=reuse, trainable=trainable)
     coarse1 = tf.nn.max_pool(coarse1_conv, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID', name='pool1')
@@ -36,9 +37,9 @@ def loss(logits, depths, invalid_depths):
     depths_flat = tf.reshape(depths, [-1, 55*74])
     invalid_depths_flat = tf.reshape(invalid_depths, [-1, 55*74])
 
-    predict = tf.mul(logits_flat, invalid_depths_flat)
-    target = tf.mul(depths_flat, invalid_depths_flat)
-    d = tf.sub(predict, target)
+    predict = tf.multiply(logits_flat, invalid_depths_flat)
+    target = tf.multiply(depths_flat, invalid_depths_flat)
+    d = tf.subtract(predict, target)
     square_d = tf.square(d)
     sum_square_d = tf.reduce_sum(square_d, 1)
     sum_d = tf.reduce_sum(d, 1)
@@ -53,6 +54,6 @@ def _add_loss_summaries(total_loss):
     losses = tf.get_collection('losses')
     loss_averages_op = loss_averages.apply(losses + [total_loss])
     for l in losses + [total_loss]:
-        tf.scalar_summary(l.op.name + ' (raw)', l)
-        tf.scalar_summary(l.op.name, loss_averages.average(l))
+        tf.summary.scalar(l.op.name + ' (raw)', l)
+        tf.summary.scalar(l.op.name, loss_averages.average(l))
     return loss_averages_op
