@@ -141,7 +141,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_steps', type=int, default=10000000,
                         help='Max steps')
     parser.add_argument('--log_device_placement', action='store_false',
-                        help='Log device placement')
+                        help='Log device placement')  # stores True by default
     parser.add_argument('--batch_size', type=int, default=8,
                         help='Batch size')
     parser.add_argument('--train_file', type=str, default='train.csv',
@@ -151,9 +151,9 @@ if __name__ == '__main__':
     parser.add_argument('--refine_dir', type=str, default='refine',
                         help='Refine directory')
     parser.add_argument('--refine_train', action='store_true',
-                        help='Refine train')
+                        help='Refine train')  # stores False by default
     parser.add_argument('--fine_tune', action='store_true',
-                        help='Fine tune')
+                        help='Fine tune')  # stores False by default
     parser.add_argument('--log_dir', type=str, default='logs',
                         help='Log directory')
     FLAGS, unparsed = parser.parse_known_args()
