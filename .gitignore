@@ -1,1 +1,4 @@
 *.pyc
+data/predict*
+data/*.mat
+data/nyu_datasets/*

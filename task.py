@@ -100,7 +100,7 @@ def train():
                 if index % 10 == 0:
                     print("%s: %d[epoch]: %d[iteration]: train loss %f" % (
                         datetime.now(), step, index, loss_value))
-                    summary_writer.add_summary(summary, 1000**step+i)
+                    summary_writer.add_summary(summary, 1000*step+i)
                     assert not np.isnan(
                         loss_value), 'Model diverged with loss = NaN'
                 if index % 500 == 0:
