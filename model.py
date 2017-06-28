@@ -25,7 +25,7 @@ def inference_refine(images, coarse7_output, keep_conv, reuse=False, trainable=T
     fine1_conv = conv2d('fine1', images, [9, 9, 3, 63], [63], [1, 2, 2, 1], padding='VALID', reuse=reuse, trainable=trainable)
     fine1 = tf.nn.max_pool(fine1_conv, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='fine_pool1')
     fine1_dropout = tf.nn.dropout(fine1, keep_conv)
-    fine2 = tf.concat(3, [fine1_dropout, coarse7_output])
+    fine2 = tf.concat([fine1_dropout, coarse7_output], 3)
     fine3 = conv2d('fine3', fine2, [5, 5, 64, 64], [64], [1, 1, 1, 1], padding='SAME', reuse=reuse, trainable=trainable)
     fine3_dropout = tf.nn.dropout(fine3, keep_conv)
     fine4 = conv2d('fine4', fine3_dropout, [5, 5, 64, 1], [1], [1, 1, 1, 1], padding='SAME', reuse=reuse, trainable=trainable)

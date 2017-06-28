@@ -13,35 +13,41 @@ FLAGS = None
 
 
 def main(unused_argv):
-    """Main."""
-    print("load dataset: %s" % (FLAGS.nyu_path))
-    f = h5py.File(FLAGS.nyu_path)
+	"""Main."""
+	print("load dataset: %s" % (FLAGS.nyu_path))
+	f = h5py.File(FLAGS.nyu_path)
 
-    data_dir = os.path.join('data', 'nyu_datasets')
+	data_dir = os.path.join('data', 'nyu_datasets')
 
-    if not tf.gfile.Exists(data_dir):
-        tf.gfile.MakeDirs(data_dir)
+	if not tf.gfile.Exists(data_dir):
+		tf.gfile.MakeDirs(data_dir)
 
-    trains = []
-    for i, (image, depth) in enumerate(zip(f['images'], f['depths'])):
-        ra_image = image.transpose(2, 1, 0)
-        ra_depth = depth.transpose(1, 0)
-        re_depth = (ra_depth/np.max(ra_depth))*255.0
-        image_pil = Image.fromarray(np.uint8(ra_image))
-        depth_pil = Image.fromarray(np.uint8(re_depth))
-        image_name = os.path.join(data_dir, "%05d.jpg" % (i))
-        image_pil.save(image_name)
-        depth_name = os.path.join(data_dir, "%05d.png" % (i))
-        depth_pil.save(depth_name)
+	trains = []
+	for i, (image, depth) in enumerate(zip(f['images'], f['depths'])):
+		ra_image = image.transpose(2, 1, 0)
+		ra_depth = depth.transpose(1, 0)
+		ra_depth = ra_depth - np.min(ra_depth) # shift to zero min
+		re_depth = (ra_depth/np.max(ra_depth))*255.0 # normalize in [0,1] and then scale by 255
+		image_pil = Image.fromarray(np.uint8(ra_image))
+		depth_pil = Image.fromarray(np.uint8(re_depth))
+		image_name = os.path.join(data_dir, "%05d.jpg" % (i))
+		image_pil.save(image_name)
+		depth_name = os.path.join(data_dir, "%05d.png" % (i))
+		depth_pil.save(depth_name)
 
-        trains.append((image_name, depth_name))
+		trains.append((image_name, depth_name))
 
-    random.shuffle(trains)
+	random.shuffle(trains)
 
-    with open('train.csv', 'w') as output:
-        for (image_name, depth_name) in trains:
-            output.write("%s,%s" % (image_name, depth_name))
-            output.write("\n")
+	with open('train.csv', 'w') as output:
+		for (image_name, depth_name) in trains[:FLAGS.train_set_size]:
+		    output.write("%s,%s" % (image_name, depth_name))
+		    output.write("\n")
+
+	with open('test.csv', 'w') as output:
+		for (image_name, depth_name) in trains[FLAGS.train_set_size:]:
+			output.write('%s,%s' % (image_name, depth_name))
+			output.write('\n')
 
 
 if __name__ == '__main__':
@@ -49,5 +55,9 @@ if __name__ == '__main__':
     parser.add_argument('--nyu_path', type=str,
                         default='data/nyu_depth_v2_labeled.mat',
                         help='Path containing labelled NYUv2 dataset')
+    parser.add_argument('--train_set_size', type=int,
+                        default=795, help='Train set size')
+    parser.add_argument('--test_set_size', type=int,
+                        default=654, help='Test set size')
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)

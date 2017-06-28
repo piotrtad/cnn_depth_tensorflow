@@ -9,6 +9,7 @@ import tensorflow as tf
 from dataset import DataSet
 from dataset import output_predict
 import model
+import os
 import sys
 import train_operation as op
 
@@ -34,8 +35,13 @@ def train():
         init_op = tf.initialize_all_variables()
 
         # Session
+        # sess = tf.Session(config=tf.ConfigProto(
+        #                   log_device_placement=FLAGS.log_device_placement,
+        #                   device_count={'GPU': 1}))
         sess = tf.Session(config=tf.ConfigProto(
-                          log_device_placement=FLAGS.log_device_placement))
+                          log_device_placement=FLAGS.log_device_placement,
+                          gpu_options=tf.GPUOptions(visible_device_list='1')
+                          ))
         merged = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
         sess.run(init_op)
@@ -106,11 +112,14 @@ def train():
                 if index % 500 == 0:
                     if FLAGS.refine_train:
                         output_predict(logits_val, images_val,
-                                       "data/predict_refine_%05d_%05d" %
-                                       (step, i))
+                                       os.path.join(FLAGS.output_dir,
+                                                    "predict_refine_%05d_%05d" %
+                                                    (step, i)))
                     else:
                         output_predict(logits_val, images_val,
-                                       "data/predict_%05d_%05d" % (step, i))
+                                       os.path.join(FLAGS.output_dir,
+                                                    "predict_%05d_%05d" %
+                                                    (step, i)))
                 index += 1
 
             if step % 5 == 0 or (step * 1) == FLAGS.max_steps:
@@ -137,7 +146,10 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
+    today = datetime.strftime(datetime.now(), '%d%m%y')
     parser = argparse.ArgumentParser()
+    parser.add_argument('--gpu', type=str, default='/gpu:0',
+                        help='GPU to run')
     parser.add_argument('--max_steps', type=int, default=10000000,
                         help='Max steps')
     parser.add_argument('--log_device_placement', action='store_false',
@@ -146,15 +158,21 @@ if __name__ == '__main__':
                         help='Batch size')
     parser.add_argument('--train_file', type=str, default='train.csv',
                         help='Train file')
-    parser.add_argument('--coarse_dir', type=str, default='coarse',
+    parser.add_argument('--coarse_dir', type=str,
+                        default=os.path.join(today, 'coarse'),
                         help='Coarse directory')
-    parser.add_argument('--refine_dir', type=str, default='refine',
+    parser.add_argument('--refine_dir', type=str,
+                        default=os.path.join(today, 'refine'),
                         help='Refine directory')
     parser.add_argument('--refine_train', action='store_true',
                         help='Refine train')  # stores False by default
     parser.add_argument('--fine_tune', action='store_true',
                         help='Fine tune')  # stores False by default
-    parser.add_argument('--log_dir', type=str, default='logs',
+    parser.add_argument('--log_dir', type=str,
+                        default=os.path.join(today, 'logs'),
                         help='Log directory')
+    parser.add_argument('--output_dir', type=str,
+                        default=os.path.join(today, 'output'),
+                        help='Output prediction directory')
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
