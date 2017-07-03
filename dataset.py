@@ -11,8 +11,8 @@ TARGET_WIDTH = 74
 class DataSet:
     def __init__(self, batch_size):
         self.batch_size = batch_size
-
-    def csv_inputs(self, csv_file_path):
+    
+    def csv_inputs(self, csv_file_path, image_size=[IMAGE_HEIGHT, IMAGE_WIDTH], target_size=[TARGET_HEIGHT, TARGET_WIDTH]):
         filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
         reader = tf.TextLineReader()
         _, serialized_example = reader.read(filename_queue)
@@ -28,8 +28,8 @@ class DataSet:
         depth = tf.div(depth, [255.0])
         #depth = tf.cast(depth, tf.int64)
         # resize
-        image = tf.image.resize_images(image, (IMAGE_HEIGHT, IMAGE_WIDTH))
-        depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
+        image = tf.image.resize_images(image, image_size)
+        depth = tf.image.resize_images(depth, target_size)
         invalid_depth = tf.sign(depth)
         # generate batch
         images, depths, invalid_depths = tf.train.batch(
