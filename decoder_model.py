@@ -65,7 +65,6 @@ def model(inputs, reuse=False, trainable=True, debug=False):
     return net
 
 
-
 def loss(logits, depths, invalid_depths):
     logits_flat = tf.reshape(logits, [-1, 228*304])
     depths_flat = tf.reshape(depths, [-1, 228*304])
@@ -78,9 +77,11 @@ def loss(logits, depths, invalid_depths):
     sum_square_d = tf.reduce_sum(square_d, 1)
     sum_d = tf.reduce_sum(d, 1)
     sqare_sum_d = tf.square(sum_d)
-    cost = tf.reduce_mean(sum_square_d / 228.0*304.0 - 0.5*sqare_sum_d / math.pow(228*304, 2))
+    cost = tf.reduce_mean(sum_square_d / 228.0*304.0 - 0.5*sqare_sum_d /
+                          math.pow(228*304, 2))
     tf.add_to_collection('losses', cost)
     return tf.add_n(tf.get_collection('losses'), name='total_loss')
+    # return cost
 
 
 def _add_loss_summaries(total_loss):

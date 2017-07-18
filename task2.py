@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 from dataset import DataSet
 from dataset import output_predict
-import decoder_model 
+import decoder_model
 import os
 import sys
 import train_operation as op
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--fine_tune', action='store_true',
                         help='Fine tune')  # stores False by default
     parser.add_argument('--log_dir', type=str,
-                        default=os.path.join(today, 'logs'),
+                        default=os.path.join(today, 'train', 'logs'),
                         help='Log directory')
     parser.add_argument('--output_dir', type=str,
                         default=os.path.join(today, 'output'),
