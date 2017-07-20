@@ -24,12 +24,13 @@ import numpy as np
 import tensorflow as tf
 
 from dataset import DataSet
+from dataset import output_predict
 import decoder_model
 
 FLAGS = tf.app.flags.FLAGS
 
 
-def eval_once(saver, summary_writer, error, summary_op):
+def eval_once(saver, summary_writer, error, summary_op, logits, images):
     """Run Eval once.
 
     Args:
@@ -40,7 +41,7 @@ def eval_once(saver, summary_writer, error, summary_op):
     """
     with tf.Session(config=tf.ConfigProto(
                     log_device_placement=FLAGS.log_device_placement,
-                    gpu_options=tf.GPUOptions(visible_device_list='1',
+                    gpu_options=tf.GPUOptions(visible_device_list='0',
                                               allow_growth=True))) as sess:
 
         ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
@@ -62,22 +63,33 @@ def eval_once(saver, summary_writer, error, summary_op):
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
             num_iter = int(math.ceil(FLAGS.num_examples
                                      / FLAGS.batch_size))
-            total_loss = 0  # Counts the number of correct predictions.
-            total_sample_count = num_iter * FLAGS.batch_size
+            total_loss = 0  # Accumulates the batch mean error.
+
             step = 0
             while step < num_iter and not coord.should_stop():
-                predictions = sess.run([error])
-                total_loss += np.sum(predictions)
+                summary_str, mean_error, logits_val, images_val = \
+                    sess.run([summary_op, error, logits, images])
+                if step == num_iter:
+                    total_loss += np.sum(mean_error) * (FLAGS.num_examples
+                                                        % FLAGS.batch_size)
+                else:
+                    total_loss += np.sum(mean_error) * FLAGS.batch_size
                 step += 1
 
-            # Compute precision @ 1.
-            precision = total_loss / total_sample_count
+            # Mean eval set error.
+            eval_error = total_loss / FLAGS.num_examples
+
+            print("%s: %s[global step]: test error %f" % (datetime.now(),
+                                                    global_step, eval_error))
 
             summary = tf.Summary()
-            summary.ParseFromString(sess.run(summary_op))
-            summary.value.add(tag='Precision @ 1',
-                              simple_value=precision)
+            summary.ParseFromString(summary_str)
+            summary.value.add(tag='Eval error', simple_value=eval_error)
             summary_writer.add_summary(summary, global_step)
+
+            output_predict(logits_val, images_val,
+                           os.path.join(FLAGS.output_dir, "predict_%s" %
+                                        global_step))
         except Exception as e:  # pylint: disable=broad-except
             coord.request_stop(e)
 
@@ -101,7 +113,7 @@ def evaluate():
         logits = decoder_model.model(images, trainable=False)
 
         # Calculate predictions.
-        error = decoder_model.loss(logits, depths, invalid_depths)
+        error = decoder_model.scale_invariant_loss(logits, depths)
 
         # Restore the moving average version of the learned variables for eval.
         # variable_averages = tf.train.ExponentialMovingAverage(
@@ -125,7 +137,7 @@ def evaluate():
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir, g)
 
         while True:
-            eval_once(saver, summary_writer, error, summary_op)
+            eval_once(saver, summary_writer, error, summary_op, logits, images)
             if FLAGS.run_once:
                 break
             time.sleep(FLAGS.eval_interval_secs)
@@ -133,9 +145,8 @@ def evaluate():
 
 def main(argv=None):  # pylint: disable=unused-argument
     """Main."""
-    if tf.gfile.Exists(FLAGS.test_dir):
-        tf.gfile.DeleteRecursively(FLAGS.test_dir)
-    tf.gfile.MakeDirs(FLAGS.test_dir)
+    if not tf.gfile.Exists(FLAGS.test_dir):
+        tf.gfile.MakeDirs(FLAGS.test_dir)
     evaluate()
 
 
@@ -152,21 +163,21 @@ if __name__ == '__main__':
                         default=os.path.join(today, 'test'),
                         help='Test directory')
     parser.add_argument('--checkpoint_dir', type=str,
-                        default=("./300617/train/"),
+                        default=("./190717/train/"),
                         help='Directory where to read model checkpoints.')
     parser.add_argument('--eval_interval_secs', default=60 * 5,
                         help='How often to run the eval.')
     parser.add_argument('--num_examples', type=int, default=654,
                         help='Number of examples to run.')
-    parser.add_argument('--run_once', action='store_false',
-                        help='Whether to run eval only once.')  # default True
+    parser.add_argument('--run_once', action='store_true',
+                        help='Whether to run eval only once.')  # default False
     # parser.add_argument('--fine_tune', action='store_true',
     #                     help='Fine tune')  # stores False by default
     parser.add_argument('--log_dir', type=str,
-                        default=os.path.join(today, 'test', 'logs'),
+                        default=os.path.join(today, 'logs', 'test'),
                         help='Log directory')
     parser.add_argument('--output_dir', type=str,
-                        default=os.path.join(today, 'output'),
+                        default=os.path.join(today, 'test', 'output'),
                         help='Output prediction directory')
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
