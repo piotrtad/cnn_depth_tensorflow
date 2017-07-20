@@ -4,3 +4,4 @@ data/*.mat
 data/nyu_datasets/*
 .ipynb_checkpoints/*
 old/*
+[0-9]*
