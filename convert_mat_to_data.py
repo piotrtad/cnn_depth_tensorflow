@@ -1,4 +1,8 @@
-"""Convert NYUv2 dataset to PNG images."""
+"""Convert NYUv2 dataset from Matlab to usable input.
+
+images: mat to jpg
+depths: mat to npy
+"""
 # encoding: utf-8
 import argparse
 import os
@@ -24,19 +28,24 @@ def main(unused_argv):
 
     trains = []
     for i, (image, depth) in enumerate(zip(f['images'], f['depths'])):
-        ra_image = image.transpose(2, 1, 0)
-        ra_depth = depth.transpose(1, 0)
-        ra_depth = ra_depth - np.min(ra_depth)  # shift to zero min
-        re_depth = (ra_depth/np.max(ra_depth))*255.0  # norm in [0,1] * 255
-        image_pil = Image.fromarray(np.uint8(ra_image))
-        depth_pil = Image.fromarray(np.uint8(re_depth))
+        image = image.transpose(2, 1, 0)
+        depth = depth.transpose(1, 0)
+        # crop border
+        image = image[45:471, 41:601, :]
+        depth = depth[45:471, 41:601]
+        image_pil = Image.fromarray(np.uint8(image))
         image_name = os.path.join(data_dir, "%05d.jpg" % (i))
         image_pil.save(image_name)
-        depth_name = os.path.join(data_dir, "%05d.png" % (i))
-        depth_pil.save(depth_name)
+        depth_name = os.path.join(data_dir, "%05d.bin" % (i))
+        # np.save(depth_name, depth)
+        depth.tofile(depth_name)
 
         trains.append((image_name, depth_name))
 
+        if i % 100 == 0:
+            print('processed %d/%d...' % (i, len(f['images'])))
+
+    print('processed %d/%d...' % (len(f['images']), len(f['images'])))
     random.shuffle(trains)
 
     with open('train.csv', 'w') as output:
