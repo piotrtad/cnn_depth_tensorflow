@@ -12,9 +12,12 @@ from model_part import fc
 def model(inputs, reuse=False, trainable=True, debug=False, keep_drop=0.5):
     """Create an upscaled Eigen coarse model.
 
-    inputs.get_shape() = TensorShape([Dimension(228), Dimension(304),
-                                       Dimension(74), Dimension(1)])
+    inputs.get_shape() = TensorShape([Dimension(8), Dimension(228),
+                                      Dimension(304), Dimension(3)])
     """
+    # Normalize by subtracting mean ~ 128.
+    inputs = tf.cast(inputs, tf.int32)
+    inputs = tf.subtract(inputs, 128)
     net = conv2d('coarse1', inputs, [11, 11, 3, 96], [96], [1, 4, 4, 1],
                  padding='VALID', reuse=reuse, trainable=trainable)
     net = tf.nn.max_pool(net, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
