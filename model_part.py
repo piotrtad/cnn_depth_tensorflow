@@ -33,6 +33,21 @@ def conv2d(scope_name, inputs, shape, bias_shape, stride, padding='VALID', wd=0.
         bias = tf.nn.bias_add(conv, biases)
         conv_ = tf.nn.relu(bias, name=scope.name)
         return conv_
+    
+def conv2d_(scope_name, inputs, shape, bias_shape, stride, padding='VALID', wd=0.0, reuse=False, trainable=True):
+    """Conv without Relu activation."""
+    with tf.variable_scope(scope_name) as scope:
+        if reuse is True:
+            scope.reuse_variables()
+        kernel = _variable_with_weight_decay(
+            'weights',
+            shape=shape,
+            stddev=0.01,
+            wd=wd,
+            trainable=trainable
+        )
+        conv = tf.nn.conv2d(inputs, kernel, stride, padding=padding)
+        return conv
 
 
 def fc(scope_name, inputs, shape, bias_shape, wd=0.04, reuse=False, trainable=True):

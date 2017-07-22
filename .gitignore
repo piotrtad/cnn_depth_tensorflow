@@ -5,3 +5,4 @@ data/nyu_datasets/*
 .ipynb_checkpoints/*
 old/*
 [0-9]*
+tests/.ipynb_checkpoints/*

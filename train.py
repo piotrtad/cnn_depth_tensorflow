@@ -85,8 +85,12 @@ def train():
                     index += 1
 
                 if step % 5 == 0 or (step * 1) == FLAGS.max_steps:
-                    checkpoint_path = FLAGS.train_dir + '/model.ckpt'
+                    checkpoint_path = FLAGS.train_dir + 'checkpoints/model.ckpt'
                     saver.save(sess, checkpoint_path, global_step=step)
+                
+		# Save snapshot after each epoch/step
+                checkpoint_path = FLAGS.train_dir + 'snapshot/model.ckpt'
+                saver.save(sess, checkpoint_path)
         except Exception as e:
             coord.request_stop(e)
 
