@@ -4,7 +4,7 @@ import tensorflow as tf
 
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 795
 NUM_EPOCHS_PER_DECAY = 30
-INITIAL_LEARNING_RATE = 0.001
+INITIAL_LEARNING_RATE = 0.0001
 LEARNING_RATE_DECAY_FACTOR = 0.9
 MOVING_AVERAGE_DECAY = 0.999999
 
@@ -31,7 +31,8 @@ def train(total_loss, global_step, batch_size):
         staircase=True)
     tf.summary.scalar('learning_rate', lr)
     loss_averages_op = _add_loss_summaries(total_loss)
-    with tf.control_dependencies([loss_averages_op]):
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies([loss_averages_op] + update_ops):
         opt = tf.train.AdamOptimizer(lr)
         grads_and_vars = opt.compute_gradients(total_loss)
     # capped_grads_and_vars = [(tf.clip_by_value(gv[0], 1e+15, -1e-15), gv[1])
