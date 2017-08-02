@@ -2,9 +2,9 @@
 
 import tensorflow as tf
 
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 500
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 795
 NUM_EPOCHS_PER_DECAY = 30
-INITIAL_LEARNING_RATE = 0.0001
+INITIAL_LEARNING_RATE = 2.2e-5  # 1e-4
 LEARNING_RATE_DECAY_FACTOR = 0.9
 MOVING_AVERAGE_DECAY = 0.999999
 
@@ -20,7 +20,8 @@ def _add_loss_summaries(total_loss):
 
 
 def train(total_loss, global_step, batch_size):
-    num_batches_per_epoch = float(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN) / batch_size
+    num_batches_per_epoch = (float(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN) /
+                             batch_size)
     decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
     lr = tf.train.exponential_decay(
         INITIAL_LEARNING_RATE,
@@ -30,10 +31,11 @@ def train(total_loss, global_step, batch_size):
         staircase=True)
     tf.summary.scalar('learning_rate', lr)
     loss_averages_op = _add_loss_summaries(total_loss)
-    with tf.control_dependencies([loss_averages_op]):
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies([loss_averages_op] + update_ops):
         opt = tf.train.AdamOptimizer(lr)
         grads = opt.compute_gradients(total_loss)
-    apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
+        apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
     for var in tf.trainable_variables():
         print(var.op.name)
         tf.summary.histogram(var.op.name, var)
