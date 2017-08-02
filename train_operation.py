@@ -20,6 +20,7 @@ def _add_loss_summaries(total_loss):
 
 
 def train(total_loss, global_step, batch_size):
+    """Run optimizer and return training op."""
     num_batches_per_epoch = (float(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN) /
                              batch_size)
     decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)

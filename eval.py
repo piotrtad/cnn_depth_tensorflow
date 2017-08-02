@@ -20,12 +20,12 @@ import os
 import sys
 import time
 
-import numpy as np
 import tensorflow as tf
 
 from dataset import DataSet
 from dataset import output_predict
 import decoder_model
+import train_operation
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -51,7 +51,16 @@ def optimistic_restore(session, save_file):
     saver.restore(session, save_file)
 
 
-def eval_once(saver, summary_writer, error, summary_op, logits, images,
+def add_summary(sess, summary_writer, summary_str, tag, error, global_step):
+    """Add summary."""
+    with sess.as_default():
+        summary = tf.Summary()
+        summary.ParseFromString(summary_str)
+        summary.value.add(tag=tag, simple_value=error)
+        summary_writer.add_summary(summary, global_step)
+
+
+def eval_once(saver, summary_writer, errors, summary_op, logits, images,
               depths):
     """Run Eval once.
 
@@ -72,8 +81,8 @@ def eval_once(saver, summary_writer, error, summary_op, logits, images,
         ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
             # Restores from checkpoint
-            # saver.restore(sess, ckpt.model_checkpoint_path)
-            optimistic_restore(sess, ckpt.model_checkpoint_path)
+            saver.restore(sess, ckpt.model_checkpoint_path)
+            # optimistic_restore(sess, ckpt.model_checkpoint_path)
             # Assuming model_checkpoint_path looks something like:
             #   /my-favorite-path/cifar10_train/model.ckpt-0,
             # extract global_step from it.
@@ -83,10 +92,12 @@ def eval_once(saver, summary_writer, error, summary_op, logits, images,
             print('No checkpoint file found')
             return
 
-        if not isinstance(global_step, int):
+        try:
+            global_step = int(global_step)
+        except ValueError as e:
             global_step = FLAGS.global_step
-        print('global step: %d' % global_step)
 
+        # debug
         # exit(1)
 
         # Start the queue runners.
@@ -95,30 +106,91 @@ def eval_once(saver, summary_writer, error, summary_op, logits, images,
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
             num_iter = int(math.ceil(FLAGS.num_examples
                                      / FLAGS.batch_size))
-            total_loss = 0  # Accumulates the batch mean error.
+            total_eigen_error = 0  # Accumulates the batch mean eigen error.
+            total_rel_error = 0  # Accumulates the batch mean relative error.
+            total_log10_error = 0  # Accumulates the batch mean log error.
+            total_rmse_error = 0  # Accumulates the batch rmse error.
+            total_accuracy1_error = 0  # Acc. the batch accuracy, d < 1.25.
+            total_accuracy2_error = 0  # Acc. the batch accuracy, d < 1.25^2.
+            total_accuracy3_error = 0  # Acc. the batch accuracy, d < 1.25^3.
 
             step = 0
             while step < num_iter and not coord.should_stop():
-                summary_str, mean_error, logits_val, images_val, depths_val = \
-                    sess.run([summary_op, error, logits, images, depths])
+                summary_str, mean_errors, logits_val, images_val, depths_val = \
+                    sess.run([summary_op, errors, logits, images, depths])
+
+                # # debug
+                # print(mean_errors)
+                # coord.request_stop()
+                # exit(1)
+
+                mean_eigen_error, mean_rel_error, mean_log10_error, rmse,\
+                    accuracy1, accuracy2, accuracy3 = mean_errors
+
                 if step == num_iter:
-                    total_loss += np.sum(mean_error) * (FLAGS.num_examples
-                                                        % FLAGS.batch_size)
+                    last_batch_size = FLAGS.num_examples % FLAGS.batch_size
+                    total_eigen_error += mean_eigen_error * last_batch_size
+                    total_rel_error += mean_rel_error * last_batch_size
+                    total_log10_error += mean_log10_error * last_batch_size
+                    total_rmse_error += rmse * last_batch_size
+                    total_accuracy1_error += accuracy1 * last_batch_size
+                    total_accuracy2_error += accuracy2 * last_batch_size
+                    total_accuracy3_error += accuracy3 * last_batch_size
                 else:
-                    total_loss += np.sum(mean_error) * FLAGS.batch_size
+                    total_eigen_error += mean_eigen_error * FLAGS.batch_size
+                    total_rel_error += mean_rel_error * FLAGS.batch_size
+                    total_log10_error += mean_log10_error * FLAGS.batch_size
+                    total_rmse_error += rmse * FLAGS.batch_size
+                    total_accuracy1_error += accuracy1 * FLAGS.batch_size
+                    total_accuracy2_error += accuracy2 * FLAGS.batch_size
+                    total_accuracy3_error += accuracy3 * FLAGS.batch_size
                 step += 1
 
-            # Mean eval set error.
-            eval_error = total_loss / FLAGS.num_examples
+            # Mean eval set errors.
+            eigen_error = total_eigen_error / FLAGS.num_examples
+            rel_error = total_rel_error / FLAGS.num_examples
+            log10_error = total_log10_error / FLAGS.num_examples
+            rmse_error = total_rmse_error / FLAGS.num_examples
+            accuracy1_error = total_accuracy1_error / FLAGS.num_examples
+            accuracy2_error = total_accuracy2_error / FLAGS.num_examples
+            accuracy3_error = total_accuracy3_error / FLAGS.num_examples
 
-            print("%s: %s[global step]: test error %f" % (datetime.now(),
-                                                          global_step,
-                                                          eval_error))
+            stats = """%s: %s[global step]:
+eigen error %f
+relative error %f
+log10 error %f
+rmse error %f
+accuracy (1.25) %f
+accuracy (1.25^2) %f
+accuracy (1.25^3) %f""" % (datetime.now(),
+                           global_step,
+                           eigen_error,
+                           rel_error,
+                           log10_error,
+                           rmse_error,
+                           accuracy1_error,
+                           accuracy2_error,
+                           accuracy3_error)
+            print(stats)
 
-            summary = tf.Summary()
-            summary.ParseFromString(summary_str)
-            summary.value.add(tag='Eval error', simple_value=eval_error)
-            summary_writer.add_summary(summary, global_step)
+            # Record summaries
+            add_summary(sess, summary_writer, summary_str, 'eval eigen error',
+                        eigen_error, global_step)
+            add_summary(sess, summary_writer, summary_str, 'eval rel error',
+                        rel_error, global_step)
+            add_summary(sess, summary_writer, summary_str, 'eval log10 error',
+                        log10_error, global_step)
+            add_summary(sess, summary_writer, summary_str, 'eval rmse error',
+                        rmse_error, global_step)
+            add_summary(sess, summary_writer, summary_str,
+                        'eval accuracy (delta < 1.25)',
+                        accuracy1_error, global_step)
+            add_summary(sess, summary_writer, summary_str,
+                        'eval eval accuracy (delta < 1.25^2)',
+                        accuracy2_error, global_step)
+            add_summary(sess, summary_writer, summary_str,
+                        'eval eval accuracy (delta < 1.25^3)',
+                        accuracy3_error, global_step)
 
             output_predict(logits_val, images_val, depths_val,
                            os.path.join(FLAGS.output_dir, "predict_%s" %
@@ -133,7 +205,7 @@ def eval_once(saver, summary_writer, error, summary_op, logits, images,
 def evaluate():
     """Eval the model."""
     with tf.Graph().as_default() as g:
-        # Get images and labels for CIFAR-10.
+        # Get images and depths.
         dataset = DataSet(FLAGS.batch_size)
         images, depths, invalid_depths = dataset.csv_inputs(FLAGS.test_file,
                                                             target_size=[228,
@@ -144,35 +216,22 @@ def evaluate():
         logits = decoder_model.model(images, is_training=False, keep_drop=1.0,
                                      trainable=False)
 
-        # Calculate predictions.
-        error = decoder_model.scale_invariant_loss(logits, depths)
+        # Calculate eval metrics.
+        errors = decoder_model.errors(logits, depths)
 
         # Restore the moving average version of the learned variables for eval.
-        # variable_averages = tf.train.ExponentialMovingAverage(
-        #     train_operation.MOVING_AVERAGE_DECAY)
-        # variables_to_restore = variable_averages.variables_to_restore()
-        # saver = tf.train.Saver(variables_to_restore)
-        # parameters
-        variables_to_restore = {}
-
-        for variable in tf.global_variables():
-            variable_name = variable.name
-            if variable_name.find("/") < 0 or variable_name.count("/") != 1:
-                continue
-            variables_to_restore[variable_name] = variable
-
-        print('\n'.join(variables_to_restore.keys()))
-
+        decay = train_operation.MOVING_AVERAGE_DECAY
+        variable_averages = tf.train.ExponentialMovingAverage(decay)
+        variables_to_restore = variable_averages.variables_to_restore()
         saver = tf.train.Saver(variables_to_restore)
 
         # Build the summary operation based on the TF collection of Summaries.
         summary_op = tf.summary.merge_all()
-
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir, g)
 
         while True:
-            eval_once(saver, summary_writer, error, summary_op, logits, images,
-                      depths)
+            eval_once(saver, summary_writer, errors, summary_op, logits,
+                      images, depths)
             if FLAGS.run_once:
                 break
             time.sleep(FLAGS.eval_interval_secs)
@@ -210,8 +269,6 @@ if __name__ == '__main__':
                         help='Whether to run eval only once.')  # default False
     parser.add_argument('--global_step', type=int, default=0,
                         help='Batch size')
-    # parser.add_argument('--fine_tune', action='store_true',
-    #                     help='Fine tune')  # stores False by default
     parser.add_argument('--log_dir', type=str,
                         default=os.path.join(today, 'logs', 'test'),
                         help='Log directory')
