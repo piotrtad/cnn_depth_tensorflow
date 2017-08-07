@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 from dataset import DataSet
 from dataset import output_predict
-import decoder_model
+import dense_decoder_up_conv
 import os
 import sys
 import train_operation as op
@@ -23,9 +23,9 @@ def train():
                                                target_size=[228, 304])
         keep_drop = tf.placeholder(tf.float32)
         is_training = tf.placeholder(tf.bool)
-        logits = decoder_model.model(images, is_training, keep_drop,
-                                     debug=FLAGS.debug)
-        loss = decoder_model.scale_invariant_loss(logits, depths)
+        logits = dense_decoder_up_conv.model(images, is_training, keep_drop,
+                                             debug=FLAGS.debug)
+        loss = dense_decoder_up_conv.scale_invariant_loss(logits, depths)
         train_op = op.train(loss, global_step, FLAGS.batch_size)
         init_op = tf.global_variables_initializer()
         tf.summary.image('images', images, max_outputs=3)
@@ -41,73 +41,73 @@ def train():
         merged = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
         sess.run(init_op)
-        
-        params_to_restore_once = [  'conv1_bn/beta:0',
-                                    'conv1_bn/gamma:0',
-                                    'conv1/biases:0',
-                                    'conv1/weights:0',
-                                    'conv2_bn/beta:0',
-                                    'conv2/biases:0',
-                                    'conv2/weights:0',
-                                    'conv3_bn/beta:0',
-                                    'conv3_bn/gamma:0',
-                                    'conv3/biases:0',
-                                    'conv3/weights:0',
-                                    'conv4_bn/beta:0',
-                                    'conv4_bn/gamma:0',
-                                    'conv4/biases:0',
-                                    'conv4/weights:0',
-                                    'conv5_bn/beta:0',
-                                    'conv5_bn/gamma:0',
-                                    'conv5/biases:0',
-                                    'conv5/weights:0',
-                                    'fc6_bn/beta:0',
-                                    'fc6_bn/gamma:0',
-                                    'fc6/biases:0',
-                                    'fc6/weights:0',
-                                    'fc7_bn/beta:0',
-                                    'fc7_bn/gamma:0',
-                                    'fc7/biases:0',
-                                    'fc7/weights:0',
-                                    'up1_bn/beta:0',
-                                    'up1_bn/gamma:0',
-                                    'up1/biases:0',
-                                    'up1/weights:0',
-                                    'up2_bn/beta:0',
-                                    'up2_bn/gamma:0',
-                                    'up2/biases:0',
-                                    'up2/weights:0',
-                                    'up3_bn/beta:0',
-                                    'up3_bn/gamma:0',
-                                    'up3/biases:0',
-                                    'up3/weights:0',
-                                    'up4_bn/beta:0',
-                                    'up4_bn/gamma:0',
-                                    'up4/biases:0',
-                                    'up4/weights:0',
-                                    'up5_bn/beta:0',
-                                    'up5_bn/gamma:0',
-                                    'up5/biases:0',
-                                    'up5/weights:0',
-                                    'up6/biases:0',
-                                    'up6/weights:0']
 
-        # parameters
-        params = {}
-        for variable in tf.global_variables():
-            variable_name = variable.name
-            if variable_name not in params_to_restore_once or variable_name.find("/") < 0 or variable_name.count("/") != 1:
-                continue
-            params[variable_name] = variable
-
-        # with open('trainable_params_1.txt', 'w') as param_file:
-        #     param_file.write('\n'.join(params.keys()))
-        
-        print('params to restore:\n%s' % '\n'.join(params.keys()))
+        # params_to_restore_once = [  'conv1_bn/beta:0',
+        #                             'conv1_bn/gamma:0',
+        #                             'conv1/biases:0',
+        #                             'conv1/weights:0',
+        #                             'conv2_bn/beta:0',
+        #                             'conv2/biases:0',
+        #                             'conv2/weights:0',
+        #                             'conv3_bn/beta:0',
+        #                             'conv3_bn/gamma:0',
+        #                             'conv3/biases:0',
+        #                             'conv3/weights:0',
+        #                             'conv4_bn/beta:0',
+        #                             'conv4_bn/gamma:0',
+        #                             'conv4/biases:0',
+        #                             'conv4/weights:0',
+        #                             'conv5_bn/beta:0',
+        #                             'conv5_bn/gamma:0',
+        #                             'conv5/biases:0',
+        #                             'conv5/weights:0',
+        #                             'fc6_bn/beta:0',
+        #                             'fc6_bn/gamma:0',
+        #                             'fc6/biases:0',
+        #                             'fc6/weights:0',
+        #                             'fc7_bn/beta:0',
+        #                             'fc7_bn/gamma:0',
+        #                             'fc7/biases:0',
+        #                             'fc7/weights:0',
+        #                             'up1_bn/beta:0',
+        #                             'up1_bn/gamma:0',
+        #                             'up1/biases:0',
+        #                             'up1/weights:0',
+        #                             'up2_bn/beta:0',
+        #                             'up2_bn/gamma:0',
+        #                             'up2/biases:0',
+        #                             'up2/weights:0',
+        #                             'up3_bn/beta:0',
+        #                             'up3_bn/gamma:0',
+        #                             'up3/biases:0',
+        #                             'up3/weights:0',
+        #                             'up4_bn/beta:0',
+        #                             'up4_bn/gamma:0',
+        #                             'up4/biases:0',
+        #                             'up4/weights:0',
+        #                             'up5_bn/beta:0',
+        #                             'up5_bn/gamma:0',
+        #                             'up5/biases:0',
+        #                             'up5/weights:0',
+        #                             'up6/biases:0',
+        #                             'up6/weights:0']
+        #
+        # # parameters
+        # params = {}
+        # for variable in tf.global_variables():
+        #     variable_name = variable.name
+        #     if variable_name not in params_to_restore_once or variable_name.find("/") < 0 or variable_name.count("/") != 1:
+        #         continue
+        #     params[variable_name] = variable
+        #
+        # # with open('trainable_params_1.txt', 'w') as param_file:
+        # #     param_file.write('\n'.join(params.keys()))
+        #
+        # print('params to restore:\n%s' % '\n'.join(params.keys()))
 
         # define saver
-        restorer = tf.train.Saver(params)
-        
+        # restorer = tf.train.Saver(params)
+
         saver = tf.train.Saver(tf.global_variables())
 
         # fine tune
@@ -115,7 +115,8 @@ def train():
             ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
             if ckpt and ckpt.model_checkpoint_path:
                 print("Loading pretrained model...")
-                restorer.restore(sess, ckpt.model_checkpoint_path)
+                # restorer.restore(sess, ckpt.model_checkpoint_path)
+                saver.restore(sess, ckpt.model_checkpoint_path)
                 print("Pretrained model restored.")
             else:
                 print("No pretrained model.")
