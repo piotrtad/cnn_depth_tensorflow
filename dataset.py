@@ -6,13 +6,13 @@ from PIL import Image
 
 IMAGE_HEIGHT = 228
 IMAGE_WIDTH = 304
-DEPTH_HEIGHT = 426
-DEPTH_WIDTH = 560
+DEPTH_HEIGHT = 360  # check
+DEPTH_WIDTH = 434  # check
 TARGET_HEIGHT = 228
 TARGET_WIDTH = 304
-IMAGES_MEAN = 109.31410628
-IMAGES_STD = 76.18328376
-IMAGES_ISTD = 1.0 / IMAGES_STD
+# IMAGES_MEAN = 109.31410628
+# IMAGES_STD = 76.18328376
+# IMAGES_ISTD = 1.0 / IMAGES_STD
 
 
 class DataSet:
@@ -38,8 +38,12 @@ class DataSet:
 
         # target
         depth = tf.read_file(depth_filename)
-        depth = tf.decode_raw(depth, tf.float32)
+        # depth = tf.decode_raw(depth, tf.float32)
+        depth = tf.image.decode_png(depth, dtype=tf.uint16)
         depth = tf.reshape(depth, [DEPTH_HEIGHT, DEPTH_WIDTH, 1])
+        depth = tf.cast(depth, tf.float32)
+        # decoded depth in mm. convert to metres.
+        depth = depth / 1000.
 
         # resize
         image = tf.image.resize_images(image, image_size)

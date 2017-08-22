@@ -17,7 +17,8 @@ def model(inputs, is_training, reuse=False, keep_drop=0.5, trainable=True,
                                       Dimension(304), Dimension(3)])
     """
     # Normalize.
-    inputs = (inputs - dataset.IMAGES_MEAN) * dataset.IMAGES_ISTD
+    # inputs = (inputs - dataset.IMAGES_MEAN) * dataset.IMAGES_ISTD
+    inputs = inputs - 128
     net = conv2d('conv1', inputs, [11, 11, 3, 96], [96], [1, 4, 4, 1],
                  padding='VALID', reuse=reuse, trainable=trainable, wd=0.0005,
                  activation=None)
