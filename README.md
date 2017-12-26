@@ -1,6 +1,7 @@
 # Human Depth Inference with Deep Neural Networks
 
 Implementation of monocular depth estimation using Convolutional Neural Networks.
+![Network architecture](images/model_arch.png "Model architecture")
 
 ## Getting Started
 
